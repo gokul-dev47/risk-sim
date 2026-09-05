@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      # `required: false` (Compose Spec 2.24+) means a clean checkout
+      # WITHOUT a .env file still builds and starts successfully —
+      # Razorpay Test Mode simply reports unavailable (see
+      # GET /razorpay/status) rather than the whole stack failing to
+      # come up. This was a real gap: `docker compose up --build` used
+      # to hard-fail on ".env: no such file or directory" for anyone
+      # who hadn't first copied .env.example to .env, even though
+      # Razorpay is the only feature that needs those two values.
+      - path: .env
+        required: false
+    ports:
+      - "8010:8000"
+    volumes:
+      - model-artifacts:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # 120s covers a fresh-volume first boot: the full training
+      # pipeline (~55-75s measured) blocks uvicorn from starting, since
+      # it's required, deterministic artifact generation. It no longer
+      # also waits for risk_engine/load_test.py (~40-60s) — that now
+      # runs in the background AFTER uvicorn is listening (see
+      # Dockerfile CMD), so it doesn't delay API/frontend availability.
+      # Subsequent restarts with a populated volume skip training
+      # entirely and are healthy within one interval.
+      start_period: 120s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  model-artifacts:
+    # Persists data/raw + data/processed (trained model, metrics, etc.)
+    # across container restarts, so the ~20s training pipeline only runs
+    # once on first boot, not every restart.

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/
+
+# Regenerable ML artifacts (produced by run_pipeline.py)
+data/raw/*.csv
+data/processed/*.joblib
+data/processed/*.json
+data/processed/*.csv
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+*.log
+.env

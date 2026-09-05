@@ -1,0 +1,15 @@
+pandas
+numpy
+Faker
+scikit-learn
+fastapi
+uvicorn[standard]
+pydantic
+joblib
+shap
+networkx
+
+# Testing (CI)
+pytest
+httpx
+razorpay
