@@ -431,7 +431,7 @@ cd risk-sim
 docker compose up --build
 ```
 
-- Backend API: http://localhost:8000 (`/health` for a liveness check)
+- Backend API: http://localhost:8010 (`/health` for a liveness check)
 - Frontend: http://localhost:5173
 
 On first boot the backend container runs `run_pipeline.py` once (only if
