@@ -463,6 +463,30 @@ pytest tests/
 `risk_engine/canonical_event.py` defines `CanonicalTransactionEvent`, a
 single normalized representation of a payment event, plus three
 adapters:
+## Engineering Incidents & Recovery
+
+### 1. Missing Adaptive Risk Analysis Artifacts
+
+During final integration, the application was fully operational, but three Adaptive Risk Management analyses became unavailable:
+
+- Threshold Business Case
+- Evasion Analysis
+- Adaptive Effectiveness Experiment
+
+The backend logs showed that the corresponding generated artifacts were missing. The issue was traced to the Docker startup logic: it checked only for the trained model artifact. If the model already existed, the complete pipeline was skipped even when newer analysis artifacts were absent.
+
+#### Recovery
+
+The missing artifacts were regenerated inside the backend container:
+
+```bash
+docker compose exec backend python3 risk_engine/threshold_business_case.py
+docker compose exec backend python3 risk_engine/evasion_analysis.py
+docker compose exec backend python3 risk_engine/adaptive_effectiveness_experiment.py
+```
+The generated artifacts were verified with:
+```
+docker compose exec backend ls -lh data/processed/
 
 ```
 synthetic simulator row  --[from_synthetic_row]-->    CanonicalTransactionEvent
