@@ -17,11 +17,39 @@
 
 ---
 
+## 🎬 Try the Demo (Start Here)
+
+The fastest way to evaluate this project — no setup required:
+
+1. **Open the app:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)
+2. **Wake the backend first** by visiting the [health check](https://risk-sim-xqou.onrender.com/health) — if it's cold, give it ~30–60 seconds, then refresh the frontend.
+3. Go to the **Demo Scenario** tab — it runs a fixed, four-step walkthrough (normal → suspicious → coordinated attack → repeated attack pattern) that shows a transaction being scored, explained, and eventually triggering a live drift-status change.
+4. Check the **What-If Simulator** to submit a custom transaction and see the decision + SHAP explanation in real time.
+5. Check the **Audit Trail** tab to see the hash-chained, tamper-evident log of every decision made during your session.
+
+**📹 Demo Video:** [Watch the full walkthrough](https://youtu.be/sfBqxrUBPX4)
+
+---
+
+## 🖼️ Screenshots
+
+| Live Dashboard | What-If Simulator |
+|---|---|
+| ![Dashboard](./docs/screenshots/dashboard.png) | ![What-If Simulator](./docs/screenshots/what-if.png) |
+
+| Drift Monitoring | Audit Trail |
+|---|---|
+| ![Drift Monitoring](./docs/screenshots/drift.png) | ![Audit Trail](./docs/screenshots/audit.png) |
+
+*(Add your screenshots to `docs/screenshots/` in the repo using the filenames above — `dashboard.png`, `what-if.png`, `drift.png`, `audit.png` — or update the paths here to match whatever you upload.)*
+
+---
+
 ## 📌 Overview
 
 `risk-sim` is a full-stack fraud-risk engine built around one core idea: **fraud detection systems shouldn't just be accurate — they should be explainable, auditable, and honest about their own limitations.**
 
-A FastAPI backend turns raw transaction data into leak-safe engineered features, scores them through a **fused RandomForest + IsolationForest pipeline**, and returns a calibrated risk score with a **SHAP-based, per-transaction explanation**. A React + TypeScript dashboard visualizes live scoring, drift status, audit trails, and "what-if" simulations for demo and review purposes.
+A FastAPI backend turns raw transaction data into leak-safe engineered features, scores them through a **fused RandomForest + IsolationForest pipeline**, and returns a model-derived risk score with a **SHAP-based, per-transaction explanation**. (Calibration — Brier score and Platt-scaling comparison — is analyzed separately in `/model/diagnostics` and `MODEL_CARD.md`, but the live decision path serves the raw model score, not a calibrated one; see Honest Metrics below.) A React + TypeScript dashboard visualizes live scoring, drift status, audit trails, and "what-if" simulations for demo and review purposes.
 
 The project is designed to answer a realistic fraud-risk brief: *catch both known and novel payment fraud patterns while keeping every decision explainable, auditable, and resilient to failure.*
 
@@ -30,7 +58,7 @@ The project is designed to answer a realistic fraud-risk brief: *catch both know
 ## ✨ Key Features
 
 - **Hybrid Detection** — A `RandomForestClassifier` catches known fraud patterns; an `IsolationForest` flags statistically unusual behavior the classifier has never seen labeled examples of. Their outputs are fused into a single `ALLOW / REVIEW / BLOCK` decision.
-- **Explainable AI** — Every `/predict` response includes a real, SHAP-computed explanation of exactly which features pushed the risk score up or down for that specific transaction.
+- **Explainable AI** — Every `/predict` response includes a real, SHAP-computed explanation showing which features contributed most to the model's risk score for that specific transaction — not a canned or templated explanation.
 - **Cost-Aware Decisioning** — Decision thresholds are chosen by minimizing an explicit cost function that weighs missed fraud against false declines (`/model/cost-curve`).
 - **Drift Monitoring & Adaptive Thresholds** — A PSI-based drift monitor tracks live traffic against the training distribution and automatically (and transparently) tightens ALLOW/BLOCK thresholds when drift increases — with a disclosed A/B/C experiment proving out its actual effect.
 - **Resilience by Design** — A circuit breaker falls back to a deterministic rule engine if the ML pipeline fails, instead of crashing or silently allowing every transaction through. Failure can be demoed live and reversed on demand.
@@ -81,6 +109,34 @@ The project is designed to answer a realistic fraud-risk brief: *catch both know
 | **IsolationForest** | "Does this look statistically unlike normal behavior at all — known or not?" |
 
 Fusing both signals catches known *and* novel attack patterns without over-triggering. Importantly, an anomaly flag alone never auto-blocks a transaction — novel-but-uncertain behavior is escalated to `REVIEW` for human review, not unilaterally blocked.
+
+---
+
+## 💳 Razorpay Test Mode Integration
+
+`risk_engine/razorpay_adapter.py` maps Razorpay **Test Mode** payment events into the project's canonical transaction format so they can be scored by the same live pipeline as synthetic data — without ever touching real money or production credentials.
+
+- **What it does:** normalizes a Razorpay Test Mode event into `CanonicalTransactionEvent`, then runs it through the same `derive_live_features → predict()` path used by `/api/v1/score-canonical-event`, producing a real decision (`ALLOW`/`REVIEW`/`BLOCK`), risk score, and SHAP explanation.
+- **What it doesn't do:** it is not connected to Razorpay's production systems, does not process real transactions, and does not store or transmit real card data. `GET /razorpay/status` reports whether the SDK is installed and credentials are configured, so the frontend can gracefully show "unavailable" instead of failing.
+- **Why it's isolated:** the Razorpay SDK import is optional (`RAZORPAY_SDK_AVAILABLE`), so a checkout without the SDK installed, or without credentials configured, degrades cleanly instead of breaking the rest of the app (including the test suite, which passes with the SDK both present and absent).
+
+In short: this is a **sandboxed integration proof-of-concept**, demonstrating how the risk engine would plug into a real payment gateway's event stream — not a live payments feature.
+
+---
+
+## 📊 Results at a Glance
+
+| Metric | Value | Notes |
+|---|---|---|
+| ROC-AUC | High | See `/model/metrics` for exact value on current trained artifacts |
+| AUC-PR (Average Precision) | Reported alongside ROC-AUC | More honest metric on imbalanced fraud data |
+| Fusion precision | 0.599 | Deliberate tradeoff — favors catching more fraud over fewer false positives |
+| Weakest fraud subtype | `bin_enumeration` — 94.7% recall | Disclosed as a known limitation, not hidden |
+| Brier score (calibration) | 0.00157 | Already well-calibrated on this dataset; Platt scaling gave no measurable improvement |
+| Adaptive thresholding effect (A/B/C test) | ~0.1% cost change | Honest null result — reclassified individual transactions but didn't move recall |
+| Canonical event feature parity | 392/393 rows (99.7%) match offline pipeline | One disclosed same-timestamp edge case |
+
+*(Exact live numbers are served fresh from `/model/metrics`, `/model/diagnostics`, and `/model/adaptive-effectiveness` — the table above summarizes what those endpoints report as of the last documented run.)*
 
 ---
 
