@@ -10,38 +10,47 @@
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-black)](#tech-stack)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)](#license)
 
-🔗 **Live App:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)
+🔗 **Live App:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)  
 🔗 **Backend Health Check:** [risk-sim-xqou.onrender.com/health](https://risk-sim-xqou.onrender.com/health)
 
 > ⚠️ The backend is hosted on Render's free tier and may take 30–60 seconds to spin up on first request after inactivity.
 
 ---
 
-## 🎬 Try the Demo (Start Here)
+## 🎬 Try the Demo — Start Here
 
-The fastest way to evaluate this project — no setup required:
+The fastest way to evaluate the system is the deployed application — no local setup required.
 
-1. **Open the app:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)
-2. **Wake the backend first** by visiting the [health check](https://risk-sim-xqou.onrender.com/health) — if it's cold, give it ~30–60 seconds, then refresh the frontend.
-3. Go to the **Demo Scenario** tab — it runs a fixed, four-step walkthrough (normal → suspicious → coordinated attack → repeated attack pattern) that shows a transaction being scored, explained, and eventually triggering a live drift-status change.
-4. Check the **What-If Simulator** to submit a custom transaction and see the decision + SHAP explanation in real time.
-5. Check the **Audit Trail** tab to see the hash-chained, tamper-evident log of every decision made during your session.
+**Live App:** https://risk-sim.vercel.app/  
+**Backend Health:** https://risk-sim-xqou.onrender.com/health  
+**Demo Video:** https://youtu.be/sfBqxrUBPX4
 
-**📹 Demo Video:** [Watch the full walkthrough](https://youtu.be/sfBqxrUBPX4)
+### 90-second judge path
+
+1. Open the **Live App**.
+2. If the Render backend is cold, open **Backend Health**, wait ~30–60 seconds, then refresh.
+3. Open **What-If Simulator** and submit a transaction to see the live decision, RF signal, IsolationForest anomaly signal, fusion state, and SHAP contributors.
+4. Open **Demo Scenario** and run the deterministic attack progression to see the drift monitor respond to repeated traffic.
+5. Open **Adaptive Risk Management** to inspect drift, cost-aware thresholds, model comparison, and the controlled A/B/C experiment.
+6. Open **Razorpay Test** to complete a Razorpay Test Mode checkout and inspect server-side verification.
+7. Open **Audit Trail** to see both risk-system events and the Razorpay Test Mode payment lifecycle recorded in the same tamper-evident audit stream.
+
+> **Important demo boundary:** Razorpay is used in **Test Mode only**. The showcased Razorpay checkout is a sandbox payment/order lifecycle and server-side signature-verification demonstration; it does not process production payments or real card data.
 
 ---
 
-## 🖼️ Screenshots
+## 🧭 Why This Fits a Payment-Risk System
 
-| Live Dashboard | What-If Simulator |
+| Risk-system requirement | How `risk-sim` addresses it |
 |---|---|
-| ![Dashboard](./docs/screenshots/dashboard.png) | ![What-If Simulator](./docs/screenshots/what-if.png) |
-
-| Drift Monitoring | Audit Trail |
-|---|---|
-| ![Drift Monitoring](./docs/screenshots/drift.png) | ![Audit Trail](./docs/screenshots/audit.png) |
-
-*(Add your screenshots to `docs/screenshots/` in the repo using the filenames above — `dashboard.png`, `what-if.png`, `drift.png`, `audit.png` — or update the paths here to match whatever you upload.)*
+| **Detect risk** | RandomForest detects learned fraud patterns; IsolationForest adds an independent anomaly signal. |
+| **Explain decisions** | Live risk predictions expose SHAP-based feature contributions. |
+| **Control false positives** | Thresholds are evaluated with an explicit fraud-vs-decline cost function. |
+| **Handle changing traffic** | PSI-based drift monitoring can tighten decision thresholds when traffic shifts. |
+| **Fail safely** | A circuit breaker switches to a deterministic fallback rule engine when the ML path is unavailable. |
+| **Remain auditable** | Decisions, OTP events, rate-limit events, and payment lifecycle events are recorded in a tamper-evident hash chain. |
+| **Integrate with payments safely** | Razorpay Test Mode demonstrates order creation, checkout, server-side signature verification, and audit integration without production payment access. |
+| **Prove rather than claim** | The deployed API, UI demonstrations, CI pipeline, diagnostics, drift experiments, and resilience paths are directly inspectable. |
 
 ---
 
@@ -69,35 +78,94 @@ The project is designed to answer a realistic fraud-risk brief: *catch both know
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture — Risk, Safety & Payment Boundaries
 
+The system is deliberately organized around **trust boundaries**, not just a generic data-flow diagram. Payment events enter through a controlled adapter; ML produces signals; deterministic policy makes the decision; drift, fallback, rate limiting, and audit operate as safety/control layers.
+
+```mermaid
+flowchart TB
+    subgraph INPUT["01 · INPUT BOUNDARY"]
+        RZ["Razorpay Test Mode\nOrder / checkout lifecycle"]
+        SYN["Synthetic transaction stream\nControlled threat simulator"]
+    end
+
+    subgraph CANON["02 · CANONICALIZATION"]
+        AD["razorpay_adapter.py\nGateway event → canonical event"]
+        FE["Leak-safe feature engineering\nShift / expanding-window features"]
+    end
+
+    subgraph SIGNALS["03 · RISK SIGNALS"]
+        RF["RandomForest\nKnown fraud patterns"]
+        IF["IsolationForest\nNovel / anomalous behaviour"]
+        SHAP["SHAP\nPer-decision explanation"]
+    end
+
+    subgraph DECISION["04 · DECISION + SAFETY GATE"]
+        FUSE["Risk fusion\nRF + anomaly signal"]
+        COST["Cost-aware policy\nALLOW / REVIEW / BLOCK"]
+        CB["Circuit breaker\nDeterministic fallback"]
+        OTP["Step-up verification\nDemo-safe OTP"]
+    end
+
+    subgraph CONTROL["05 · CONTROL PLANE"]
+        DRIFT["PSI drift monitor\nTraffic-shift detection"]
+        ADAPT["Adaptive thresholds\nTransparent tightening"]
+        AUDIT["Hash-chained audit\nDecision + payment events"]
+        RATE["Rate limiting\nEndpoint protection"]
+    end
+
+    subgraph EXPERIENCE["06 · OPERATOR EXPERIENCE"]
+        API["FastAPI\nREST / JSON"]
+        UI["React + TypeScript\nDashboard / What-If / Demo / Audit"]
+    end
+
+    RZ --> AD
+    SYN --> FE
+    AD --> FE
+    FE --> RF
+    FE --> IF
+    RF --> FUSE
+    IF --> FUSE
+    FUSE --> COST
+    FUSE --> SHAP
+    COST -->|ALLOW / REVIEW / BLOCK| API
+    COST --> OTP
+    API --> UI
+
+    COST -. telemetry .-> DRIFT
+    DRIFT --> ADAPT
+    ADAPT -. threshold posture .-> COST
+
+    RF -. failure .-> CB
+    IF -. failure .-> CB
+    CB -. safe fallback .-> API
+
+    API --> AUDIT
+    API --> RATE
+
+    classDef input fill:#eef6ff,stroke:#4b78a8,stroke-width:1px
+    classDef ml fill:#f3efff,stroke:#7655a6,stroke-width:1px
+    classDef safety fill:#fff4e5,stroke:#b97819,stroke-width:1px
+    classDef control fill:#eef8f1,stroke:#4f8a61,stroke-width:1px
+    classDef ui fill:#f5f5f5,stroke:#666,stroke-width:1px
+
+    class RZ,SYN,AD,FE input
+    class RF,IF,SHAP ml
+    class FUSE,COST,CB,OTP safety
+    class DRIFT,ADAPT,AUDIT,RATE control
+    class API,UI ui
 ```
-┌──────────────┐     ┌──────────────────────┐     ┌────────────────┐
-│  simulator/   │ --> │  feature_engineering  │ --> │  train_model    │
-│  (synthetic   │     │  (risk_engine/)        │     │  (simulator/)   │
-│  tx generator)│     │  leak-safe, shift /     │     │  RandomForest + │
-└──────────────┘     │  expanding windows only │     │  IsolationForest│
-                      └──────────────────────┘     └────────┬────────┘
-                                                              │
-                                                              ▼
-                                                   ┌────────────────────┐
-                                                   │  backend/main.py    │
-                                                   │  FastAPI:            │
-                                                   │  /predict             │
-                                                   │  /model/metrics       │
-                                                   │  /model/cost-curve    │
-                                                   │  /drift/status,reset  │
-                                                   │  /audit/recent        │
-                                                   └──────────┬──────────┘
-                                                              │ REST / JSON
-                                                              ▼
-                                                   ┌────────────────────┐
-                                                   │     frontend/        │
-                                                   │  Dashboard, What-If,  │
-                                                   │  Model View, Audit,   │
-                                                   │  Demo Scenario, etc.  │
-                                                   └────────────────────┘
-```
+
+### Trust boundaries
+
+| Boundary | Rule |
+|---|---|
+| **Razorpay → Adapter** | External payment events are normalized; they do not directly set a fraud decision. |
+| **ML → Decision Gate** | Model signals feed deterministic decision policy; an anomaly flag alone does not auto-block. |
+| **Decision → Fallback** | ML failure switches to a deterministic fallback rather than silently allowing transactions. |
+| **Decision → Audit** | Risk events are written to a hash chain for later integrity verification. |
+| **Drift → Thresholds** | Drift can change decision thresholds; it does not silently retrain the model. |
+| **Frontend → Backend** | The UI does not fabricate a risk result when the backend is unavailable. |
 
 ---
 
@@ -108,19 +176,82 @@ The project is designed to answer a realistic fraud-risk brief: *catch both know
 | **RandomForest** | "Does this look like a known kind of fraud we've seen labeled examples of?" |
 | **IsolationForest** | "Does this look statistically unlike normal behavior at all — known or not?" |
 
-Fusing both signals catches known *and* novel attack patterns without over-triggering. Importantly, an anomaly flag alone never auto-blocks a transaction — novel-but-uncertain behavior is escalated to `REVIEW` for human review, not unilaterally blocked.
+Fusing both signals broadens coverage across known and novel attack patterns while keeping the final decision behind explicit thresholds. Importantly, an anomaly flag alone never auto-blocks a transaction — novel-but-uncertain behavior is escalated to `REVIEW` for human review, not unilaterally blocked.
 
 ---
 
 ## 💳 Razorpay Test Mode Integration
 
-`risk_engine/razorpay_adapter.py` maps Razorpay **Test Mode** payment events into the project's canonical transaction format so they can be scored by the same live pipeline as synthetic data — without ever touching real money or production credentials.
+Razorpay is treated as a **sandboxed payment-system boundary** around the risk platform.
 
-- **What it does:** normalizes a Razorpay Test Mode event into `CanonicalTransactionEvent`, then runs it through the same `derive_live_features → predict()` path used by `/api/v1/score-canonical-event`, producing a real decision (`ALLOW`/`REVIEW`/`BLOCK`), risk score, and SHAP explanation.
-- **What it doesn't do:** it is not connected to Razorpay's production systems, does not process real transactions, and does not store or transmit real card data. `GET /razorpay/status` reports whether the SDK is installed and credentials are configured, so the frontend can gracefully show "unavailable" instead of failing.
-- **Why it's isolated:** the Razorpay SDK import is optional (`RAZORPAY_SDK_AVAILABLE`), so a checkout without the SDK installed, or without credentials configured, degrades cleanly instead of breaking the rest of the app (including the test suite, which passes with the SDK both present and absent).
+The deployed **Razorpay Test** panel demonstrates a real Razorpay Test Mode order → Checkout → payment-signature → server-side verification lifecycle, with the resulting payment events written to the application's audit trail.
 
-In short: this is a **sandboxed integration proof-of-concept**, demonstrating how the risk engine would plug into a real payment gateway's event stream — not a live payments feature.
+### What the integration demonstrates
+
+- **Test Mode order creation** — the backend creates a Razorpay Test Mode order for the checkout flow.
+- **Hosted checkout** — the user completes the payment in Razorpay's Test Mode checkout.
+- **Server-side verification** — the backend verifies the returned payment signature and exposes the verified payment/order status.
+- **Audit integration** — order creation and verified payment events are recorded in the same audit stream as risk-system events, distinguished by event type.
+- **Optional SDK boundary** — Razorpay-specific functionality is isolated so the core risk engine does not depend on production gateway credentials.
+- **Canonical event adapter** — `risk_engine/razorpay_adapter.py` provides the gateway-event → `CanonicalTransactionEvent` mapping used for payment-event integration.
+
+### What it deliberately does **not** claim
+
+- The showcased Razorpay checkout is **not a production payment integration**.
+- No production Razorpay credentials are used.
+- No real-money payment is processed.
+- No real card data is stored or transmitted by this project.
+- The Razorpay Test checkout panel is intentionally separate from the fraud-model scoring views; the UI explicitly labels the payment flow as a payment/order verification demonstration.
+
+> **Why this matters:** the project shows a credible payment-gateway integration boundary without pretending that a hackathon sandbox is a production acquiring or fraud-decision system.
+
+---
+
+## 🖼️ Product Walkthrough
+
+These screenshots are selected to show the system's most important evaluation surfaces: **live explainability, adaptive risk management, resilience, Razorpay Test Mode, and auditability**.
+
+### Live Risk Decision + Explainability
+
+![What-If Simulator](./docs/screenshots/what-if.png)
+
+The What-If Simulator exposes the live decision surface: RF risk, IsolationForest anomaly state, fused result, and the top contributing SHAP features.
+
+### Controlled Drift Demonstration
+
+![Demo Scenario](./docs/screenshots/demo-scenario.png)
+
+The deterministic Demo Scenario repeats a coordinated attack fingerprint and shows the drift monitor move toward a retraining-recommended state.
+
+### Adaptive Risk Management
+
+![Adaptive Risk Management](./docs/screenshots/adaptive-risk.png)
+
+The adaptive-risk view connects PSI drift to the active threshold posture, cost curve, precision/recall trade-offs, and the controlled A/B/C experiment.
+
+### Resilience / Fallback Mode
+
+![Resilience and fallback](./docs/screenshots/adaptive-risk-detail.png)
+
+The system can visibly enter **Fallback Mode — Rule Engine** when the ML path is unavailable. This is an intentional resilience state, not a fabricated ML result.
+
+### Razorpay Test Mode — Successful Checkout
+
+![Razorpay Test Mode checkout](./docs/screenshots/razorpay-checkout.png)
+
+A real Razorpay **Test Mode** checkout is completed without real money or production payment credentials.
+
+### Razorpay Server-Side Verification
+
+![Razorpay server-side verification](./docs/screenshots/razorpay-verification.png)
+
+The backend reports successful server-side payment verification, including captured payment and paid order status.
+
+### Audit Trail
+
+![Audit Trail](./docs/screenshots/audit-trail.png)
+
+The audit stream records Razorpay Test Mode order/verification events alongside risk events, making the payment lifecycle inspectable.
 
 ---
 
@@ -128,7 +259,7 @@ In short: this is a **sandboxed integration proof-of-concept**, demonstrating ho
 
 | Metric | Value | Notes |
 |---|---|---|
-| ROC-AUC | High | See `/model/metrics` for exact value on current trained artifacts |
+| ROC-AUC | Live endpoint | Current value is served by `/model/metrics` from the deployed model artifact |
 | AUC-PR (Average Precision) | Reported alongside ROC-AUC | More honest metric on imbalanced fraud data |
 | Fusion precision | 0.599 | Deliberate tradeoff — favors catching more fraud over fewer false positives |
 | Weakest fraud subtype | `bin_enumeration` — 94.7% recall | Disclosed as a known limitation, not hidden |
@@ -136,7 +267,7 @@ In short: this is a **sandboxed integration proof-of-concept**, demonstrating ho
 | Adaptive thresholding effect (A/B/C test) | ~0.1% cost change | Honest null result — reclassified individual transactions but didn't move recall |
 | Canonical event feature parity | 392/393 rows (99.7%) match offline pipeline | One disclosed same-timestamp edge case |
 
-*(Exact live numbers are served fresh from `/model/metrics`, `/model/diagnostics`, and `/model/adaptive-effectiveness` — the table above summarizes what those endpoints report as of the last documented run.)*
+*(The live deployment exposes current model metrics through `/model/metrics`, diagnostics through `/model/diagnostics`, and adaptive-threshold evaluation through `/model/adaptive-effectiveness`. The README avoids presenting a stale ROC-AUC value as current.)*
 
 ---
 
@@ -155,7 +286,7 @@ In short: this is a **sandboxed integration proof-of-concept**, demonstrating ho
 
 ## 📂 Repository Structure
 
-```
+```text
 risk-sim/
 ├── backend/
 │   └── main.py                  FastAPI app: /predict, /model/*, /drift/*, /audit/*, /system/*
@@ -210,7 +341,7 @@ cd risk-sim
 # Backend
 pip install -r requirements.txt
 python3 run_pipeline.py                       # generate data + train models
-python3 -m uvicorn backend.main:app --reload   # start API
+python3 -m uvicorn backend.main:app --reload  # start API
 
 # Frontend (in a separate terminal)
 cd frontend
@@ -248,6 +379,9 @@ pytest tests/
 | `GET /audit/recent` | Recent decisions for audit / review |
 | `GET /model/diagnostics` | Calibration, fairness proxy, latency |
 | `GET /system/status` | Circuit breaker state |
+| `GET /razorpay/status` | Razorpay SDK / integration readiness |
+| `POST /razorpay/order` | Create a Razorpay Test Mode order |
+| `POST /razorpay/verify` | Verify Razorpay payment signature |
 
 *(Full endpoint list available in the source code and API docs at `/docs` when running locally.)*
 
@@ -262,6 +396,32 @@ This project deliberately reports metrics most demo projects skip:
 - A disclosed **A/B/C experiment** measuring whether adaptive thresholding actually improves outcomes — reported honestly, including a null/marginal result.
 
 See [`MODEL_CARD.md`](./MODEL_CARD.md) for full intended-use documentation, performance breakdowns, and known limitations.
+
+### Reliability & resilience evidence
+
+- `risk_engine/load_test.py` exercises the real `/predict` path across increasing concurrency levels.
+- The test suite covers API behaviour, model diagnostics, drift behaviour, and resilience/fallback paths.
+- GitHub Actions runs the backend pipeline/tests and the frontend type-check/build on every CI run.
+
+---
+
+## 🔍 Reviewer Verification Matrix
+
+A reviewer can verify the core claims directly instead of relying on screenshots:
+
+| Claim | Where to verify |
+|---|---|
+| Backend is healthy | `/health` |
+| Model artifacts are loaded | `/health`, `/model/metrics` |
+| Risk decisions are live | `/predict` / **What-If Simulator** |
+| Explanations are model-generated | `/predict` response + SHAP panel |
+| Drift is measurable | `/drift/status` + **Demo Scenario** |
+| Threshold adaptation is explicit | `/model/adaptive-effectiveness` + **Adaptive Risk Management** |
+| Failure recovery exists | Circuit-breaker state + **Fallback Mode** |
+| Razorpay Test checkout works | **Razorpay Test** panel |
+| Payment verification is server-side | Razorpay verification result |
+| Payment events are auditable | **Audit Trail** |
+| CI is enforced | `.github/workflows/ci.yml` |
 
 ---
 
