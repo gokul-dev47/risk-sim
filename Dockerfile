@@ -21,6 +21,8 @@ COPY run_pipeline.py .
 # first boot, the entrypoint below trains everything fresh.
 RUN mkdir -p data/raw data/processed
 
+RUN python3 run_pipeline.py
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=5 \
