@@ -472,3 +472,78 @@ re-derived or re-labeled).
 endpoint still serves only the synthetic model above. This benchmark is
 offline/report-only by design, so a real-world number can never silently
 leak into, or be confused with, the deployed BIN-enumeration decision.
+
+## 20. Drift-Triggered Adaptive Thresholding — Does It Actually Help?
+
+The live system automatically tightens the ALLOW/BLOCK probability cut
+points when the PSI-based drift monitor moves out of `stable`:
+
+| Drift status | ALLOW ceiling | BLOCK floor |
+|---|---|---|
+| `stable` | 0.40 | 0.75 |
+| `watch` | 0.35 | 0.70 |
+| `retrain_recommended` | 0.30 | 0.65 |
+
+This is a small, bounded, fully-logged posture shift — "the model's
+calibration is less trustworthy right now, so route more borderline
+traffic to REVIEW/BLOCK until drift clears" — never a claim that the
+model itself learned anything new. There is no online learning in this
+system; `risk_engine/adaptive_thresholds.py` only moves fixed cut points,
+and `/drift/status` never re-fits the RandomForest. It's visible in the
+`adaptation` block on `GET /drift/status`, the `thresholds_applied`
+field on every `/predict` response, and an `adaptive_threshold_change`
+audit event whenever the posture actually changes.
+
+Having a threshold-tightening mechanism is not the same as it being
+useful, so `risk_engine/adaptive_effectiveness_experiment.py` runs a
+controlled A/B/C comparison on the **same held-out TEST rows**, with a
+disclosed synthetic drift injection (not a claim about observed
+real-world Razorpay traffic):
+
+| Condition | PSI | Thresholds | Recall | Precision | Review rate | Expected cost |
+|---|---|---|---|---|---|---|
+| A. Baseline (stable) | 0.02 | 0.40 / 0.75 | 99.9% | 75.8% | 3.0% | ₹72,510 |
+| B. Drifted + static | 0.61 | 0.40 / 0.75 (unchanged) | 99.9% | 21.2% | 33.3% | ₹792,370 |
+| C. Drifted + adaptive | 0.61 | 0.30 / 0.65 (tightened) | 99.9% | 21.2% | 33.1% | ₹791,450 |
+
+**Honest finding, not dressed up:** adaptation reclassified 23 individual
+transactions but did not change the missed-fraud count, and moved
+expected cost by only ~0.1% (within noise). This is structural, not a
+bug — this model's probability outputs are highly separated (the same
+flat precision/recall plateau documented in §16), so most rows sit far
+from either threshold boundary and a ±0.05-0.10 shift reclassifies few
+of them. Adaptive thresholding's demonstrated value here is mainly the
+REVIEW-routing/audit-trail signal it produces for operators (a visible,
+logged posture change when drift crosses into `watch`/`retrain_recommended`),
+**not** a large precision/recall/cost swing on this dataset. Run
+`python3 risk_engine/adaptive_effectiveness_experiment.py` to reproduce,
+or see it live at `GET /model/adaptive-effectiveness` / the "Did
+Adaptation Actually Help?" panel in the Adaptive Risk Management tab.
+
+## 21. Resilience & Trust Additions: Step-Up Verification, Rate Limiting, Audit Chain, Cold Start
+
+Additions scoped specifically to Track 02's transaction-risk mandate —
+not a general-purpose auth system (this app has no user accounts,
+logins, or sessions; these are transaction-level controls):
+
+- **Step-up OTP verification**: every `REVIEW` decision automatically
+  issues a demo-safe OTP challenge (`POST /verify/otp/request`,
+  `POST /verify/otp/confirm`). Successful verification resolves the
+  transaction to `ALLOW`; expired or exhausted (3 wrong attempts)
+  verification escalates it to `BLOCK` — a real, disclosed risk signal,
+  not decoration. **Explicitly demo/simulated** — no real SMS or payment
+  service is connected; the OTP code is returned directly in the API
+  response, which a production system would never do.
+- **Rate limiting**: `/predict` (60/min), `/verify/otp/request`
+  (3/10min), and `/verify/otp/confirm` (5/10min) each have their own
+  in-memory sliding-window budget. Exceeding a limit returns `429` with
+  a `Retry-After` header and logs a `rate_limit_triggered` audit event.
+- **Tamper-evident audit chain**: `GET /audit/chain` and
+  `GET /audit/verify-integrity` expose a hash-chained audit log (each
+  entry's hash includes the previous entry's, à la git commits) covering
+  every prediction, OTP event, and rate-limit trip. Editing any past
+  entry breaks the recomputed hash and is detectably flagged by
+  `/audit/verify-integrity` — verified in testing by directly mutating a
+  logged entry and confirming the check catches it.
+- **Cold-start handling** and the **risk decision evidence pack** are
+  covered in full in §13 and §14 above.

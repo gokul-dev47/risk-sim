@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: risk-sim-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    # Render reads the container's EXPOSE 8000 (see Dockerfile) and
+    # routes to it automatically — no PORT env var needed since the app
+    # binds to a fixed port, not $PORT.
+    #
+    # Render's free tier spins the service down after ~15 minutes of
+    # inactivity and takes 30-60s to cold-start on the next request —
+    # the first /predict or page load after idle will be slow. This is
+    # a platform limitation, not a bug in this app.

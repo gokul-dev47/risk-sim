@@ -15,7 +15,11 @@ import type {
   AuditChainResponse,
 } from '@/types';
 
-const BACKEND_URL = 'http://127.0.0.1:8010';
+// In production, set VITE_API_URL to your deployed backend's base URL
+// (e.g. https://risk-sim-backend.onrender.com) as an environment variable
+// on your hosting provider (Vercel/Netlify). Falls back to localhost for
+// local `npm run dev` against `docker compose up` / `uvicorn --reload`.
+const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8010';
 
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 3000): Promise<Response> {
   const controller = new AbortController();
