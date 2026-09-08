@@ -1,92 +1,139 @@
-# risk-sim
+# risk-sim — Explainable Real-Time Fraud Risk Engine
 
-**🔗 Live demo:** _[add your deployed frontend URL here after deploying — see [Deploying](#deploying)]_
-**Backend API:** _[add your deployed backend URL here]_ · **API docs:** `<backend-url>/docs`
+**A production-style fraud detection system that combines supervised ML, unsupervised anomaly detection, drift monitoring, and per-decision explainability — built to show not just *that* a transaction is risky, but *why*.**
 
-A hybrid, explainable fraud-risk engine that combines supervised detection
-of known attack patterns with unsupervised anomaly detection of novel
-ones — and tells a human, in plain language, why it made each call.
+[![Live Frontend](https://img.shields.io/badge/Demo-Live-brightgreen)](https://risk-sim.vercel.app/)
+[![Backend Health](https://img.shields.io/badge/API-Online-blue)](https://risk-sim-xqou.onrender.com/health)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](#tech-stack)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)](#tech-stack)
+[![React](https://img.shields.io/badge/React%20%2B%20TypeScript-Frontend-61DAFB)](#tech-stack)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-black)](#tech-stack)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey)](#license)
 
-Razorpay AI Buildathon — Track 02 (Transaction Risk).
+🔗 **Live App:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)
+🔗 **Backend Health Check:** [risk-sim-xqou.onrender.com/health](https://risk-sim-xqou.onrender.com/health)
 
-## Screenshots
+> ⚠️ The backend is hosted on Render's free tier and may take 30–60 seconds to spin up on first request after inactivity.
 
-<!-- Replace these four placeholders with real PNGs/JPGs (or one short
-     GIF) once you have a running instance — see docs/screenshots/README.md
-     for exactly how. Suggested shots:
-     1. Dashboard overview — live transaction feed + KPI cards
-     2. What-If Simulator with the SHAP explanation panel open
-     3. Demo Scenario view mid-walkthrough, on the BLOCK decision
-     4. Drift Monitor panel showing a status flip -->
+---
 
-| | |
-|---|---|
-| ![Dashboard overview](docs/screenshots/dashboard.png) | ![What-If Simulator](docs/screenshots/whatif.png) |
-| ![Demo Scenario — BLOCK](docs/screenshots/demo-block.png) | ![Drift Monitor status flip](docs/screenshots/drift.png) |
+## 📌 Overview
 
-## Architecture
+`risk-sim` is a full-stack fraud-risk engine built around one core idea: **fraud detection systems shouldn't just be accurate — they should be explainable, auditable, and honest about their own limitations.**
+
+A FastAPI backend turns raw transaction data into leak-safe engineered features, scores them through a **fused RandomForest + IsolationForest pipeline**, and returns a calibrated risk score with a **SHAP-based, per-transaction explanation**. A React + TypeScript dashboard visualizes live scoring, drift status, audit trails, and "what-if" simulations for demo and review purposes.
+
+The project is designed to answer a realistic fraud-risk brief: *catch both known and novel payment fraud patterns while keeping every decision explainable, auditable, and resilient to failure.*
+
+---
+
+## ✨ Key Features
+
+- **Hybrid Detection** — A `RandomForestClassifier` catches known fraud patterns; an `IsolationForest` flags statistically unusual behavior the classifier has never seen labeled examples of. Their outputs are fused into a single `ALLOW / REVIEW / BLOCK` decision.
+- **Explainable AI** — Every `/predict` response includes a real, SHAP-computed explanation of exactly which features pushed the risk score up or down for that specific transaction.
+- **Cost-Aware Decisioning** — Decision thresholds are chosen by minimizing an explicit cost function that weighs missed fraud against false declines (`/model/cost-curve`).
+- **Drift Monitoring & Adaptive Thresholds** — A PSI-based drift monitor tracks live traffic against the training distribution and automatically (and transparently) tightens ALLOW/BLOCK thresholds when drift increases — with a disclosed A/B/C experiment proving out its actual effect.
+- **Resilience by Design** — A circuit breaker falls back to a deterministic rule engine if the ML pipeline fails, instead of crashing or silently allowing every transaction through. Failure can be demoed live and reversed on demand.
+- **Tamper-Evident Audit Trail** — A hash-chained audit log (à la git commits) records every prediction, OTP event, and rate-limit trip, with integrity verification exposed via API.
+- **Honest-by-Design Frontend** — The UI never fabricates data when the backend is unreachable; it shows an explicit "Risk Engine Unavailable" state instead of a fake score. All illustrative/static figures are clearly labeled as such.
+- **Step-Up Verification & Rate Limiting** — Borderline transactions can trigger a demo-safe OTP challenge; all sensitive endpoints are protected by per-endpoint rate limiting.
+- **Real-World Benchmark** — Includes a separate model trained and evaluated on the public **IEEE-CIS Fraud Detection** dataset, kept isolated from the live synthetic-data pipeline for methodological honesty.
+
+---
+
+## 🏗️ Architecture
 
 ```
-┌─────────────┐     ┌──────────────────────┐     ┌────────────────────┐
-│  simulator/  │ --> │ feature_engineering  │ --> │  train_model        │
-│ (synthetic   │     │  (risk_engine/)       │     │  (simulator/)       │
-│  tx generator)│    │  leakage-safe,        │     │  RandomForest       │
-└─────────────┘     │  shift/expanding       │     │  + IsolationForest  │
-                     │  windows only          │     │  fusion             │
-                     └──────────────────────┘     └──────────┬─────────┘
+┌──────────────┐     ┌──────────────────────┐     ┌────────────────┐
+│  simulator/   │ --> │  feature_engineering  │ --> │  train_model    │
+│  (synthetic   │     │  (risk_engine/)        │     │  (simulator/)   │
+│  tx generator)│     │  leak-safe, shift /     │     │  RandomForest + │
+└──────────────┘     │  expanding windows only │     │  IsolationForest│
+                      └──────────────────────┘     └────────┬────────┘
                                                               │
-                                                              v
-                                                    ┌───────────────────┐
-                                                    │  backend/main.py   │
-                                                    │  FastAPI:           │
-                                                    │  /predict            │
-                                                    │  /model/metrics      │
-                                                    │  /model/cost-curve   │
-                                                    │  /drift/status,reset │
-                                                    │  /audit/recent       │
-                                                    └─────────┬─────────┘
-                                                              │ REST/JSON
-                                                              v
-                                                    ┌───────────────────┐
-                                                    │     frontend/       │
-                                                    │  Dashboard, WhatIf,  │
-                                                    │  ModelView, Audit,   │
-                                                    │  Demo Scenario, etc. │
-                                                    └───────────────────┘
+                                                              ▼
+                                                   ┌────────────────────┐
+                                                   │  backend/main.py    │
+                                                   │  FastAPI:            │
+                                                   │  /predict             │
+                                                   │  /model/metrics       │
+                                                   │  /model/cost-curve    │
+                                                   │  /drift/status,reset  │
+                                                   │  /audit/recent        │
+                                                   └──────────┬──────────┘
+                                                              │ REST / JSON
+                                                              ▼
+                                                   ┌────────────────────┐
+                                                   │     frontend/        │
+                                                   │  Dashboard, What-If,  │
+                                                   │  Model View, Audit,   │
+                                                   │  Demo Scenario, etc.  │
+                                                   └────────────────────┘
 ```
 
-## How it works
+---
 
-- **Data & features**: synthetic transaction streams (`simulator/`) turned
-  into leak-safe features (`risk_engine/`) using only backward-looking
-  aggregations — no feature can see the future.
-- **Hybrid detection**: a `RandomForestClassifier` catches known fraud
-  patterns; an `IsolationForest` catches statistically unusual behavior it
-  was never labeled on. Their outputs are fused into one decision.
-- **Cost-aware decision**: the `ALLOW`/`REVIEW`/`BLOCK` boundary is chosen
-  to minimize an explicit, disclosed cost function (`/model/cost-curve`),
-  not just accuracy.
-- **Explainable**: every `/predict` response includes a real, per-decision
-  SHAP explanation — not a canned message.
-- **Drift-aware**: a PSI-based drift monitor (`/drift/status`) recommends
-  retraining and automatically (bounded, logged, reversible) tightens
-  decision thresholds when live traffic diverges from training data — it
-  never silently retrains the model itself.
-- **Resilient**: a circuit breaker falls back to a deterministic rule
-  engine (clearly labeled `rule_fallback`) if the ML path fails, instead
-  of erroring or failing open.
-- **Auditable**: a hash-chained, tamper-evident audit log backs every
-  decision, OTP event, and rate-limit trip, with a per-transaction
-  evidence-pack endpoint for dispute response.
+## 🧠 How Detection Works
 
-All data (transactions, cards, cost assumptions) is **synthetically
-generated**; there is no live integration with Razorpay's production
-systems. Full technical write-up, honest performance numbers, and known
-limitations are in [`MODEL_CARD.md`](MODEL_CARD.md).
+| Model | Question it answers |
+|---|---|
+| **RandomForest** | "Does this look like a known kind of fraud we've seen labeled examples of?" |
+| **IsolationForest** | "Does this look statistically unlike normal behavior at all — known or not?" |
 
-## How to run
+Fusing both signals catches known *and* novel attack patterns without over-triggering. Importantly, an anomaly flag alone never auto-blocks a transaction — novel-but-uncertain behavior is escalated to `REVIEW` for human review, not unilaterally blocked.
 
-### Quick start (Docker — recommended)
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Backend** | Python 3.12, FastAPI, uvicorn, scikit-learn (RandomForest, IsolationForest), SHAP, pandas, numpy |
+| **Frontend** | React, TypeScript, Vite, Tailwind CSS, lucide-react |
+| **Testing** | pytest, httpx (FastAPI `TestClient`) |
+| **CI/CD** | GitHub Actions (backend pytest + frontend `tsc --noEmit` build) |
+| **Containerization** | Docker (multi-stage frontend build via nginx), Docker Compose |
+| **Deployment** | Vercel (frontend), Render (backend) |
+
+---
+
+## 📂 Repository Structure
+
+```
+risk-sim/
+├── backend/
+│   └── main.py                  FastAPI app: /predict, /model/*, /drift/*, /audit/*, /system/*
+├── risk_engine/
+│   ├── feature_engineering.py   Leak-safe feature construction
+│   ├── train_model.py           RandomForest + IsolationForest training
+│   ├── explainability.py        SHAP-based per-decision explanations
+│   ├── drift_monitor.py         PSI-based concept drift detection
+│   ├── adaptive_thresholds.py   Drift-triggered threshold recalibration
+│   ├── baseline_model.py        Rule-based fallback / comparison engine
+│   ├── audit_chain.py           Hash-chained tamper-evident audit log
+│   └── ...                      Additional analysis & resilience modules
+├── simulator/
+│   └── generate_threat_data.py  Synthetic transaction generator
+├── data/                        Raw + processed data, trained model artifacts
+├── frontend/
+│   └── src/
+│       ├── views/                Dashboard, Live Transactions, What-If Simulator,
+│       │                         Model Performance, Audit Trail, Demo Scenario
+│       ├── components/           Shared UI components
+│       └── services/api.ts       Backend client
+├── tests/                        pytest suite
+├── .github/workflows/ci.yml      CI pipeline (backend + frontend)
+├── Dockerfile / docker-compose.yml
+├── run_pipeline.py               One-command: generate → engineer → train → diagnose
+├── MODEL_CARD.md                 Intended use, performance, known limitations
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+### Option 1 — Docker (recommended, no local Python/Node needed)
 
 ```bash
 git clone https://github.com/gokul-dev47/risk-sim.git
@@ -94,113 +141,104 @@ cd risk-sim
 docker compose up --build
 ```
 
-- Frontend: <http://localhost:5173>
-- Backend API: <http://localhost:8010> (`/health` for a liveness check, `/docs` for Swagger UI)
+- Backend API → `http://localhost:8000` (`/health` for a liveness check)
+- Frontend → `http://localhost:5173`
 
-On first boot the backend runs the full training pipeline once (only if
-`data/processed/` is empty); artifacts persist in a named volume so later
-runs skip straight to serving.
-
-### Manual (no Docker)
+### Option 2 — Manual Setup
 
 ```bash
+# Clone
+git clone https://github.com/gokul-dev47/risk-sim.git
+cd risk-sim
+
 # Backend
 pip install -r requirements.txt
-python3 run_pipeline.py                       # generate data, engineer features, train
-python3 -m uvicorn backend.main:app --reload  # http://localhost:8000
+python3 run_pipeline.py                       # generate data + train models
+python3 -m uvicorn backend.main:app --reload   # start API
 
-# Frontend (separate terminal)
+# Frontend (in a separate terminal)
 cd frontend
 npm install
-cp .env.example .env    # VITE_API_URL — defaults to the backend above
-npm run dev             # http://localhost:5173
+npm run dev
 ```
 
-### Tests
+### Run Tests
 
 ```bash
 pytest tests/
 ```
 
-## Deploying
+---
 
-The app is two independently deployable pieces: a Dockerized FastAPI
-backend and a static Vite/React frontend.
+## 🌐 Live Deployment
 
-1. **Backend → [Render](https://render.com)** (free tier): New → Web
-   Service → connect this repo → Render detects the root `Dockerfile`
-   (`render.yaml` in this repo pre-fills the config). Health check path
-   is `/health`. Copy the resulting `https://*.onrender.com` URL.
-   _(Railway works the same way if you'd rather use that.)_
-2. **Frontend → [Vercel](https://vercel.com)** (free tier): New Project →
-   this repo → set **Root Directory** to `frontend` → framework preset
-   **Vite** → add environment variable `VITE_API_URL` = the Render URL
-   from step 1 → Deploy.
-   _(Netlify: same idea — base directory `frontend`, build command
-   `npm run build`, publish directory `dist`.)_
-3. Paste both URLs into the top of this README.
+| Service | URL |
+|---|---|
+| **Frontend Dashboard** | [risk-sim.vercel.app](https://risk-sim.vercel.app/) |
+| **Backend Health Check** | [risk-sim-xqou.onrender.com/health](https://risk-sim-xqou.onrender.com/health) |
 
-Render's free tier sleeps after ~15 minutes idle and cold-starts in
-30-60s on the next request — expected on a free-tier demo, not a bug.
+---
 
-## API endpoints
+## 🔌 Key API Endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /health` | Liveness/readiness check |
+| `GET /health` | Liveness / readiness check |
 | `POST /predict` | Score a single transaction, return decision + explanation |
-| `POST /api/v1/simulate-attack` | Jury/live transaction injection, same pipeline as `/predict` |
-| `POST /api/v1/score-canonical-event` | Canonical event contract → online features → same `/predict` pipeline |
-| `GET /model/metrics` | Accuracy, precision, recall, confusion matrix, per-subtype recall |
-| `GET /model/cost-curve` | Cost-aware threshold curve (synthetic ₹ assumptions) |
-| `GET /drift/status` / `POST /drift/reset` | PSI-based drift status / reset |
-| `GET /audit/recent` / `GET /audit/chain` / `GET /audit/verify-integrity` | Audit trail + tamper-evidence check |
-| `GET /audit/evidence-pack/{id}` | Per-transaction decision evidence pack |
-| `GET /model/baseline-comparison` | Model vs. naive rule-based baseline |
+| `POST /api/v1/simulate-attack` | Live transaction injection through the same scoring pipeline |
+| `GET /model/metrics` | Accuracy, precision, recall, confusion matrix |
+| `GET /model/cost-curve` | Cost-aware threshold curve |
+| `GET /drift/status` | Current drift status (PSI-based) |
+| `GET /audit/recent` | Recent decisions for audit / review |
 | `GET /model/diagnostics` | Calibration, fairness proxy, latency |
-| `GET /model/threshold-business-case` | Threshold sweep as merchant operating points |
-| `GET /model/load-test` | `/predict` latency under real concurrent load |
-| `GET /model/evasion-analysis` | Adversarial spacing-evasion probe |
-| `GET /model/adaptive-effectiveness` | A/B/C proof: does adaptive thresholding help? |
-| `GET /system/status` / `POST /system/simulate-failure` / `POST /system/restore` | Circuit breaker state + demo controls |
+| `GET /system/status` | Circuit breaker state |
 
-Operational notes on specific endpoints (why `/model/load-test` runs in
-the background, how `/api/v1/simulate-attack` is verified byte-identical
-to `/predict`, etc.) are in [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md).
-Full interactive docs: `<backend-url>/docs`.
+*(Full endpoint list available in the source code and API docs at `/docs` when running locally.)*
 
-## Tech stack
+---
 
-- **Backend**: Python 3.12, FastAPI, uvicorn, scikit-learn (RandomForest,
-  IsolationForest), SHAP, pandas/numpy.
-- **Frontend**: React + TypeScript, Vite, Tailwind CSS, lucide-react.
-- **Testing**: pytest + httpx (FastAPI `TestClient`).
-- **CI/CD**: GitHub Actions (backend pipeline + pytest, frontend build + `tsc --noEmit`).
-- **Containerization**: Docker (multi-stage frontend build via nginx), Docker Compose for local orchestration.
+## 📊 Honest Metrics & Model Card
 
-## Repository structure
+This project deliberately reports metrics most demo projects skip:
 
-```
-risk-sim/
-├── backend/main.py           FastAPI app: /predict, /model/*, /drift/*, /audit/*, /system/*
-├── risk_engine/               Feature engineering, training, explainability, drift, audit chain, etc.
-├── simulator/                 Synthetic transaction generator
-├── data/                      raw/ + processed/ (trained models, metrics — gitignored, regenerable)
-├── frontend/src/               views/, components/, services/api.ts, hooks/useLiveFeed.ts
-├── tests/                      pytest suite
-├── run_pipeline.py             One command: generate -> engineer -> train -> diagnose
-├── render.yaml                 Backend deploy config (Render)
-├── MODEL_CARD.md                Intended use, honest performance, known limitations
-├── INTEGRATION_NOTES.md         Frontend/backend reconciliation + integration verification
-└── DATASET_STRATEGY.md          Synthetic vs. real-world (IEEE-CIS) data strategy
-```
+- **AUC-PR (Average Precision)** alongside ROC-AUC, since ROC-AUC can look misleadingly strong on imbalanced fraud data.
+- **Calibration analysis** (Brier score + Platt scaling comparison).
+- A disclosed **A/B/C experiment** measuring whether adaptive thresholding actually improves outcomes — reported honestly, including a null/marginal result.
 
-## Further reading
+See [`MODEL_CARD.md`](./MODEL_CARD.md) for full intended-use documentation, performance breakdowns, and known limitations.
 
-The deep-dive on model performance, honest limitations, calibration,
-resilience design, and the drift-adaptive-threshold A/B/C experiment
-lives in **[`MODEL_CARD.md`](MODEL_CARD.md)**. Frontend/backend
-integration history, the canonical event contract, and engineering
-incident write-ups are in **[`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md)**.
-Synthetic-vs-real-data strategy (including the IEEE-CIS benchmark) is in
-**[`DATASET_STRATEGY.md`](DATASET_STRATEGY.md)**.
+---
+
+## ⚠️ Limitations
+
+- The `bin_enumeration` fraud subtype is the weakest-detected pattern (~94.7% recall) — an active area for improvement.
+- Fusion precision favors catching more fraud at the cost of a higher false-positive rate — a deliberate but debatable tradeoff.
+- The graph-based identity-clustering feature is a standalone ablation study and is **not yet wired into the live model**.
+- Drift monitoring recommends retraining but does not perform it automatically; it does automatically (and transparently) tighten decision thresholds.
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Improve `bin_enumeration` recall via additional BIN-level aggregation features
+- [ ] Integrate the graph-based feature into the live model, pending further validation
+- [ ] Add human-approved automated retraining *proposals* triggered by drift status
+- [ ] Expand the synthetic dataset with more fraud subtypes and seasonal patterns
+
+---
+
+## 🔒 Data & Safety Disclaimer
+
+All transaction data, card numbers, and cost assumptions used in this project are **synthetically generated** for demonstration purposes. This project uses no real card numbers or user data, has no live integration with any production payment system, and is intended strictly as a defensive risk-detection prototype.
+
+---
+
+## 👤 Author
+
+**Gokul** — [GitHub](https://github.com/gokul-dev47)
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
