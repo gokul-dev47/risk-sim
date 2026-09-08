@@ -209,51 +209,45 @@ The deployed **Razorpay Test** panel demonstrates a real Razorpay Test Mode orde
 
 ## 🖼️ Product Walkthrough
 
-These screenshots are selected to show the system's most important evaluation surfaces: **live explainability, adaptive risk management, resilience, Razorpay Test Mode, and auditability**.
+These screenshots show the main evaluation surfaces of the deployed system: **live fraud-risk scoring, explainability, adaptive risk management, payment integration, auditability, and model performance**.
 
 ### Live Risk Decision + Explainability
 
 ![What-If Simulator](./docs/screenshots/what-if.png)
 
-The What-If Simulator exposes the live decision surface: RF risk, IsolationForest anomaly state, fused result, and the top contributing SHAP features.
+The What-If Simulator exposes the live decision surface: **RandomForest risk, IsolationForest anomaly score, fused decision, and the top contributing SHAP features** for an individual transaction.
 
-### Controlled Drift Demonstration
-
-![Demo Scenario](./docs/screenshots/demo-scenario.png)
-
-The deterministic Demo Scenario repeats a coordinated attack fingerprint and shows the drift monitor move toward a retraining-recommended state.
-
-### Adaptive Risk Management
+### Adaptive Risk Management + Drift Response
 
 ![Adaptive Risk Management](./docs/screenshots/adaptive-risk.png)
 
-The adaptive-risk view connects PSI drift to the active threshold posture, cost curve, precision/recall trade-offs, and the controlled A/B/C experiment.
-
-### Resilience / Fallback Mode
-
-![Resilience and fallback](./docs/screenshots/adaptive-risk-detail.png)
-
-The system can visibly enter **Fallback Mode — Rule Engine** when the ML path is unavailable. This is an intentional resilience state, not a fabricated ML result.
+The Adaptive Risk Management view connects **PSI-based drift detection, cost-aware thresholding, precision/recall trade-offs, and adaptive decision posture**. The interface also makes clear that drift recommends retraining rather than silently retraining the model.
 
 ### Razorpay Test Mode — Successful Checkout
 
-![Razorpay Test Mode checkout](./docs/screenshots/razorpay-checkout.png)
+![Razorpay Test Mode Checkout](./docs/screenshots/razorpay-checkout.png)
 
-A real Razorpay **Test Mode** checkout is completed without real money or production payment credentials.
-
-### Razorpay Server-Side Verification
-
-![Razorpay server-side verification](./docs/screenshots/razorpay-verification.png)
-
-The backend reports successful server-side payment verification, including captured payment and paid order status.
+A real **Razorpay Test Mode** checkout is completed successfully using a sandbox transaction. No production payment credentials or real-money transactions are involved.
 
 ### Audit Trail
 
 ![Audit Trail](./docs/screenshots/audit-trail.png)
 
-The audit stream records Razorpay Test Mode order/verification events alongside risk events, making the payment lifecycle inspectable.
+The audit trail records **Razorpay Test Mode payment events alongside fraud-risk decisions**, providing an inspectable chronological security event history.
 
----
+### Dashboard — Merchant Loss Prevention
+
+![Dashboard](./docs/screenshots/Dashboard.png)
+
+The main dashboard summarizes the system's **held-out evaluation results, attack prevention, false positives, model recall, and estimated merchant-loss impact** under the deployed decision policy.
+
+### Model Performance
+
+![Model Performance](./docs/screenshots/model-performace.png)
+
+The Model Performance view exposes the RandomForest evaluation metrics and confusion matrix, including **accuracy, precision, recall, F1 score, ROC-AUC, true positives, false positives, and false negatives**.
+
+> **Note:** All transaction data and monetary impact figures shown in the dashboard are based on the project's synthetic dataset and disclosed simulation assumptions. Razorpay screenshots are from Test Mode only.
 
 ## 📊 Results at a Glance
 
