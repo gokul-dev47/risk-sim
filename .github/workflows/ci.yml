@@ -24,7 +24,10 @@ jobs:
 
       - name: Run full data/train pipeline
         run: python3 run_pipeline.py
-
+      
+      - name: Run load test
+        run: python3 risk_engine/load_test.py
+      
       - name: Run pytest
         run: python3 -m pytest tests/ -v
 
