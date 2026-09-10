@@ -388,6 +388,7 @@ This project deliberately reports metrics most demo projects skip:
 - **AUC-PR (Average Precision)** alongside ROC-AUC, since ROC-AUC can look misleadingly strong on imbalanced fraud data.
 - **Calibration analysis** (Brier score + Platt scaling comparison).
 - A disclosed **A/B/C experiment** measuring whether adaptive thresholding actually improves outcomes — reported honestly, including a null/marginal result.
+- Reports the RandomForest's Brier score (0.00059 — already well-calibrated on this dataset)
 
 See [`MODEL_CARD.md`](./MODEL_CARD.md) for full intended-use documentation, performance breakdowns, and known limitations.
 
@@ -421,8 +422,8 @@ A reviewer can verify the core claims directly instead of relying on screenshots
 
 ## ⚠️ Limitations
 
-- The `bin_enumeration` fraud subtype is the weakest-detected pattern (~94.7% recall) — an active area for improvement.
-- Fusion precision favors catching more fraud at the cost of a higher false-positive rate — a deliberate but debatable tradeoff.
+- The `bin_enumeration` is the weakest-detected fraud subtype, at 97.9% recall.
+- Fusion precision sits at 0.758 — favors catching more fraud at the cost of a higher false-positive rate, a deliberate but debatable tradeoff.
 - The graph-based identity-clustering feature is a standalone ablation study and is **not yet wired into the live model**.
 - Drift monitoring recommends retraining but does not perform it automatically; it does automatically (and transparently) tighten decision thresholds.
 
