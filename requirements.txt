@@ -1,15 +1,15 @@
-pandas
-numpy
-Faker
-scikit-learn
-fastapi
-uvicorn[standard]
-pydantic
-joblib
-shap
-networkx
+pandas==3.0.2
+numpy==2.4.4
+Faker==40.38.0
+scikit-learn==1.8.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+joblib==1.5.3
+shap==0.52.0
+networkx==3.6.1
 
 # Testing (CI)
-pytest
-httpx
-razorpay
+pytest==9.1.1
+httpx==0.28.1
+razorpay==2.0.1
