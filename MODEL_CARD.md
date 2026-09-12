@@ -237,7 +237,7 @@ checkout, never fail open and allow unrestricted fraud through silently).
 ## 9. Probability Calibration
 
 `risk_engine/model_diagnostics.py` measures the raw RandomForest's Brier
-score (0.00157 — already well-calibrated) and additionally fits a
+score (0.00059 — already well-calibrated) and additionally fits a
 Platt-scaled (`CalibratedClassifierCV`, sigmoid, cv=3) variant purely for
 comparison. On this synthetic dataset, calibration provided no measurable
 improvement, because the raw model was already close to optimal — an
