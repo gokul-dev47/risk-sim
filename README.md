@@ -7,7 +7,8 @@
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](#tech-stack)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)](#tech-stack)
 [![React](https://img.shields.io/badge/React%20%2B%20TypeScript-Frontend-61DAFB)](#tech-stack)
-[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-black)](#tech-stack)
+[![CI](https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml/badge.svg)
+(https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)](#license)
 
 🔗 **Live App:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)  
@@ -255,9 +256,9 @@ The Model Performance view exposes the RandomForest evaluation metrics and confu
 |---|---|---|
 | ROC-AUC | Live endpoint | Current value is served by `/model/metrics` from the deployed model artifact |
 | AUC-PR (Average Precision) | Reported alongside ROC-AUC | More honest metric on imbalanced fraud data |
-| Fusion precision | 0.599 | Deliberate tradeoff — favors catching more fraud over fewer false positives |
-| Weakest fraud subtype | `bin_enumeration` — 94.7% recall | Disclosed as a known limitation, not hidden |
-| Brier score (calibration) | 0.00157 | Already well-calibrated on this dataset; Platt scaling gave no measurable improvement |
+| Fusion precision | 0.758 | Deliberate tradeoff — favors catching more fraud over fewer false positives |
+| Weakest fraud subtype | `bin_enumeration` — 97.9% recall | Disclosed as a known limitation, not hidden |
+| Brier score (calibration) | 0.00059 | Already well-calibrated on this dataset; Platt scaling gave no measurable improvement |
 | Adaptive thresholding effect (A/B/C test) | ~0.1% cost change | Honest null result — reclassified individual transactions but didn't move recall |
 | Canonical event feature parity | 392/393 rows (99.7%) match offline pipeline | One disclosed same-timestamp edge case |
 
