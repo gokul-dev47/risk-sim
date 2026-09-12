@@ -31,6 +31,22 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 3
   }
 }
 
+// Render free-tier cold start can take 20-50s. Every other function in
+// this file uses a short (3-4s) timeout, which is correct for a warm
+// backend but means the FIRST request after inactivity always fails
+// before the container even finishes booting -- showing "Unavailable"
+// panels that then work fine on refresh. warmupBackend() is called once
+// on app mount with a long timeout specifically to absorb that cold
+// start, so the actual data-fetching calls that follow hit an
+// already-warm backend and succeed on their normal short timeout.
+export async function warmupBackend(): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(`${BACKEND_URL}/health`, { method: 'GET' }, 60000);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 export async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetchWithTimeout(`${BACKEND_URL}/health`, { method: 'GET' });
@@ -338,6 +354,11 @@ export async function getThresholdBusinessCase(): Promise<ApiResult<ThresholdBus
 // ---------------------------------------------------------------------------
 
 export async function getLoadTestResults(): Promise<ApiResult<LoadTestResponse>> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await fetchJson<LoadTestResponse>('/model/load-test', 4000);
+    if (result.source === 'backend') return result;
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 5000));
+  }
   return fetchJson<LoadTestResponse>('/model/load-test', 4000);
 }
 
