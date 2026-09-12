@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { warmupBackend } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -67,6 +68,10 @@ const viewMeta: Record<ViewKey, { title: string; subtitle: string }> = {
 export default function App() {
   const [view, setView] = useState<ViewKey>('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    warmupBackend();
+  }, []);
 
   const meta = viewMeta[view];
 
