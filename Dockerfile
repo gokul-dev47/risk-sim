@@ -23,6 +23,13 @@ RUN mkdir -p data/raw data/processed
 
 RUN python3 run_pipeline.py
 
+# Bake the load-test snapshot into the image at build time too — it uses
+# ASGITransport (in-process, no live server needed), so it can run here
+# alongside model training instead of racing a cold Render boot at
+# runtime. This makes /model/load-test correct from the very first
+# request, with zero background job, zero wait, zero flaky retries.
+RUN python3 risk_engine/load_test.py
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=5 \
@@ -53,15 +60,11 @@ CMD ["sh", "-c", "\
     else \
         echo 'Trained model found — skipping pipeline.'; \
     fi && \
-    ( \
-        if [ ! -f data/processed/load_test_results.json ]; then \
-            echo '[load-test] waiting for API to become healthy before running (non-blocking)...' && \
-            until curl -sf http://localhost:8000/health >/dev/null 2>&1; do sleep 2; done && \
-            echo '[load-test] API healthy — running risk_engine/load_test.py in the background...' && \
-            python3 risk_engine/load_test.py || echo '[WARN] load_test.py failed — /model/load-test will 503 until it is run manually.'; \
-        else \
-            echo 'Load-test results found — skipping.'; \
-        fi \
-    ) & \
+    if [ ! -f data/processed/load_test_results.json ]; then \
+        echo 'No load-test snapshot found — running once now...' && \
+        python3 risk_engine/load_test.py || echo '[WARN] load_test.py failed — /model/load-test will 503 until it is run manually.'; \
+    else \
+        echo 'Load-test snapshot found — skipping.'; \
+    fi && \
     exec uvicorn backend.main:app --host 0.0.0.0 --port 8000 \
     "]
