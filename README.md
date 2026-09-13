@@ -462,11 +462,13 @@ The circuit-breaker "Simulate ML Outage" control (built to demo graceful degrada
 
 None of these were caught by writing more code — they were caught by actually running the thing: cloning fresh, hitting the live URLs, reading `/system/status` directly, and cross-checking every number in this README against the artifact that actually produced it.
 
+**The honest open question this build doesn't answer:** the live model's 0.758 precision and 97.9% subtype recall are validated only on the synthetic dataset. `risk_engine/ieee_cis_train.py` proves the pipeline extends to a real-world benchmark (IEEE-CIS), but that model is deliberately separate — trained on different features, evaluated with its own metrics (see `DATASET_STRATEGY.md §5`). Nothing here demonstrates the *synthetic-trained* model's precision/recall generalizing to real fraud patterns, and I'm not going to imply otherwise. That cross-dataset validation is the single most valuable next step, and it's explicitly called out — not skipped quietly — in the Roadmap below.
 
 ---
 
 ## 🗺️ Roadmap
 
+- [ ] Validate the live synthetic-trained model's precision/recall against real-world (IEEE-CIS) transaction patterns, not just a separately-trained benchmark model
 - [ ] Improve `bin_enumeration` recall via additional BIN-level aggregation features
 - [ ] Integrate the graph-based feature into the live model, pending further validation
 - [ ] Add human-approved automated retraining *proposals* triggered by drift status
