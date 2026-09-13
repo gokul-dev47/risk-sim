@@ -445,6 +445,30 @@ A reviewer can verify the core claims directly instead of relying on screenshots
 
 ---
 
+## 🧯 What Broke, and How I Found It
+
+Shipping isn't the same as running. These are real production-shaped bugs found after deployment, not hypotheticals — each one caught by actually exercising the system, not by re-reading the code.
+
+**1. CI passed locally but failed on a fresh clone.**
+`/model/load-test` depended on a specific script run-order that only existed inside the Docker entrypoint. A bare `pytest tests/` — the first thing any reviewer runs — never triggered that script, so the test suite failed 100% of the time outside Docker. Root cause: a hidden dependency on execution environment, not on the test itself. Fixed by making the test suite self-sufficient (`tests/conftest.py` generates the missing artifact in an isolated subprocess, so no test's shared in-memory state — the audit chain, the rate limiter — gets polluted by traffic the fixture itself generates).
+
+**2. The Docker image couldn't run its own test suite.**
+The `Dockerfile` never copied `tests/` into the image at all — `pytest tests/` inside the container failed with "file or directory not found." Cosmetic-looking, but it meant the exact claim "run the tests yourself" silently didn't work in the one environment (Docker) the README recommends first.
+
+**3. Two tables in this same README disagreed with each other.**
+"Results at a Glance" reported stale metrics (0.599 fusion precision, 94.7% recall) left over from an earlier training run; "Limitations," further down, had the current, correct numbers (0.758, 97.9%) from a retrain that happened later. Caught by re-running the pipeline and diffing the actual `model_metrics.json` against every number printed in the README — not by re-reading the prose, which read fine either way.
+
+**4. The live deployment was stuck in fallback mode after a demo test.**
+The circuit-breaker "Simulate ML Outage" control (built to demo graceful degradation live) had been triggered and never restored, so every `/predict` call was silently being scored by the rule-engine fallback, not the trained model — while the health check still reported `model_loaded: true`, because model loading and circuit-breaker state are genuinely independent flags. Confirmed via `/system/status` directly, fixed via the "Restore ML Engine" button that already existed in the UI.
+
+**5. The load-test panel raced Render's cold start, indefinitely.**
+`risk_engine/load_test.py` ran in the background after `uvicorn` started, polling `/health` first — reasonable locally, but Render's free-tier shared CPU meant it could take several minutes to finish, and the frontend gave up long before that. A retry-window increase helped but didn't fully close the gap. The actual fix: the script calls the FastAPI app in-process via `httpx.ASGITransport` (no live server needed), so it can run at **build time**, baked into the image alongside model training — removing the runtime race condition entirely instead of tuning around it.
+
+None of these were caught by writing more code — they were caught by actually running the thing: cloning fresh, hitting the live URLs, reading `/system/status` directly, and cross-checking every number in this README against the artifact that actually produced it.
+
+
+---
+
 ## 🗺️ Roadmap
 
 - [ ] Improve `bin_enumeration` recall via additional BIN-level aggregation features
