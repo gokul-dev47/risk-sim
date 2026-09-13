@@ -354,10 +354,14 @@ export async function getThresholdBusinessCase(): Promise<ApiResult<ThresholdBus
 // ---------------------------------------------------------------------------
 
 export async function getLoadTestResults(): Promise<ApiResult<LoadTestResponse>> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // The load-test background job runs many concurrent /predict calls
+  // after a cold Render boot and can genuinely take 60-90s to finish,
+  // longer than a simple /health wake-up. Retry generously to cover
+  // that window rather than giving up after ~15s.
+  for (let attempt = 0; attempt < 10; attempt++) {
     const result = await fetchJson<LoadTestResponse>('/model/load-test', 4000);
     if (result.source === 'backend') return result;
-    if (attempt < 2) await new Promise((r) => setTimeout(r, 5000));
+    if (attempt < 9) await new Promise((r) => setTimeout(r, 8000));
   }
   return fetchJson<LoadTestResponse>('/model/load-test', 4000);
 }
