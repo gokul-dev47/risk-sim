@@ -7,8 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](#tech-stack)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)](#tech-stack)
 [![React](https://img.shields.io/badge/React%20%2B%20TypeScript-Frontend-61DAFB)](#tech-stack)
-[![CI](https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml/badge.svg)
-(https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml)
+[![CI](https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml/badge.svg)](https://github.com/gokul-dev47/risk-sim/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)](#license)
 
 🔗 **Live App:** [risk-sim.vercel.app](https://risk-sim.vercel.app/)  
@@ -411,9 +410,6 @@ See [`MODEL_CARD.md`](./MODEL_CARD.md) for full intended-use documentation, perf
 
 - The test suite covers API behaviour, model diagnostics, drift behaviour, and resilience/fallback paths.
 - GitHub Actions runs the backend pipeline/tests and the frontend type-check/build on every CI run.
-- The test suite covers API behaviour, model diagnostics, drift behaviour, and resilience/fallback paths.
-- GitHub Actions runs the backend pipeline/tests and the frontend type-check/build on every CI run.
-
 ---
 
 ## 🔍 Reviewer Verification Matrix
