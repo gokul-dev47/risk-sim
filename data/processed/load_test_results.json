@@ -1,0 +1,87 @@
+{
+  "endpoint": "/predict",
+  "tool": "httpx.AsyncClient with ASGITransport, asyncio.Semaphore-bounded concurrency",
+  "requests_per_concurrency_level": 200,
+  "concurrency_levels_tested": [
+    1,
+    5,
+    20,
+    50
+  ],
+  "results_by_concurrency": [
+    {
+      "concurrency": 1,
+      "n_requests": 200,
+      "wall_clock_seconds": 26.974,
+      "throughput_req_per_sec": 7.41,
+      "p50_ms": 134.482,
+      "p95_ms": 161.924,
+      "p99_ms": 188.343,
+      "mean_ms": 134.777,
+      "max_ms": 209.548,
+      "status_codes": {
+        "200": 200
+      },
+      "engines_observed": {
+        "ml_fusion": 200
+      }
+    },
+    {
+      "concurrency": 5,
+      "n_requests": 200,
+      "wall_clock_seconds": 25.843,
+      "throughput_req_per_sec": 7.74,
+      "p50_ms": 634.843,
+      "p95_ms": 789.097,
+      "p99_ms": 848.295,
+      "mean_ms": 641.554,
+      "max_ms": 925.409,
+      "status_codes": {
+        "200": 200
+      },
+      "engines_observed": {
+        "ml_fusion": 200
+      }
+    },
+    {
+      "concurrency": 20,
+      "n_requests": 200,
+      "wall_clock_seconds": 27.154,
+      "throughput_req_per_sec": 7.37,
+      "p50_ms": 2647.881,
+      "p95_ms": 3082.158,
+      "p99_ms": 3502.226,
+      "mean_ms": 2632.352,
+      "max_ms": 3642.086,
+      "status_codes": {
+        "200": 200
+      },
+      "engines_observed": {
+        "ml_fusion": 200
+      }
+    },
+    {
+      "concurrency": 50,
+      "n_requests": 200,
+      "wall_clock_seconds": 28.701,
+      "throughput_req_per_sec": 6.97,
+      "p50_ms": 6602.098,
+      "p95_ms": 9454.896,
+      "p99_ms": 10796.564,
+      "mean_ms": 6660.74,
+      "max_ms": 21227.444,
+      "status_codes": {
+        "200": 200
+      },
+      "engines_observed": {
+        "ml_fusion": 200
+      }
+    }
+  ],
+  "degradation_vs_baseline": {
+    "p50_ratio_highest_vs_baseline": 49.09,
+    "p99_ratio_highest_vs_baseline": 57.32
+  },
+  "honest_summary": "p50 latency at concurrency=50 is 49.09x the concurrency=1 baseline (6602.10ms vs 134.48ms); p99 degraded 57.32x. Engine mix observed across all requests: {'ml_fusion': 800}. This exercised the real ml_fusion path (RF + IsolationForest + SHAP), not just the deterministic rule fallback. This is real, measurable degradation under concurrency, not tuned away. Likely causes: FastAPI's sync `/predict` handler runs CPU-bound RandomForest + IsolationForest inference and SHAP explanation in Starlette's threadpool, which still serializes on the CPython GIL for the actual numeric work -- so throughput does not scale linearly with concurrent request count on a single process/worker. A production deployment would mitigate this with multiple uvicorn worker processes (separate GILs) and/or a smaller/faster model, not by changing this measurement.",
+  "limitations": "In-process ASGI transport (no real TCP/HTTP socket or network latency); single Python process/interpreter (one GIL); single uvicorn worker equivalent. This measures the application's own request-handling and inference concurrency behavior, not a multi-process production deployment's network-level behavior. See module docstring in risk_engine/load_test.py for full detail."
+}
