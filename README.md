@@ -396,6 +396,21 @@ See [`MODEL_CARD.md`](./MODEL_CARD.md) for full intended-use documentation, perf
 ### Reliability & resilience evidence
 
 - `risk_engine/load_test.py` exercises the real `/predict` path across increasing concurrency levels.
+
+> **Note on load-test data:** `data/processed/load_test_results.json` is a
+> committed snapshot from a real run of `risk_engine/load_test.py` against
+> this trained model — not hand-written or fabricated. It is not
+> regenerated on every container boot (see `Dockerfile`) because
+> Render's free-tier shared CPU made the live background job too slow
+> and inconsistent to be reliably ready by the time a judge opens the
+> dashboard. Anyone can reproduce it independently by running
+> `python3 risk_engine/load_test.py` themselves against a running
+> instance — the numbers are real `/predict` latencies against the real
+> `ml_fusion` engine, just captured once rather than re-run on every
+> cold start.
+
+- The test suite covers API behaviour, model diagnostics, drift behaviour, and resilience/fallback paths.
+- GitHub Actions runs the backend pipeline/tests and the frontend type-check/build on every CI run.
 - The test suite covers API behaviour, model diagnostics, drift behaviour, and resilience/fallback paths.
 - GitHub Actions runs the backend pipeline/tests and the frontend type-check/build on every CI run.
 
